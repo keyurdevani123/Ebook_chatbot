@@ -1,1 +1,0 @@
-nohup python -u train_books.py >> logs/train_books.log 2>&1 &

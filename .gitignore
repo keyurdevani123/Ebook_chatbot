@@ -25,3 +25,8 @@ backend/data/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Scratchpads / Legacy
+test_*.py
+app.py
+*.sh
