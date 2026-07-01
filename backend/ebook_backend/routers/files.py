@@ -36,6 +36,22 @@ async def upload_pdf(file: UploadFile = File(...), user_id: str = Depends(get_cu
     
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+        
+    size = os.path.getsize(filepath)
+    
+    from ..server import files_db, llm_client, vectordb_client
+    
+    # Check 30 MB Storage Quota
+    MAX_STORAGE_BYTES = 30 * 1024 * 1024 # 30 MB
+    user_files = files_db.get_user_files(user_id)
+    current_storage = sum(f.get("size", 0) for f in user_files)
+    
+    if current_storage + size > MAX_STORAGE_BYTES:
+        os.remove(filepath)
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Storage limit exceeded. You have a maximum of 30 MB. This file would put you at {(current_storage + size) / (1024*1024):.2f} MB."
+        )
     
     # Extract text using pdfplumber
     text = ""
@@ -49,9 +65,6 @@ async def upload_pdf(file: UploadFile = File(...), user_id: str = Depends(get_cu
         os.remove(filepath)
         raise HTTPException(status_code=400, detail=f"Failed to read PDF: {str(e)}")
         
-    size = os.path.getsize(filepath)
-    
-    from ..server import files_db, llm_client, vectordb_client
     # Save file metadata
     file_doc = files_db.store_file(user_id, file.filename, filepath, size)
     file_id = str(file_doc)

@@ -20,6 +20,7 @@ function App() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const messagesEndRef = useRef(null);
 
@@ -167,6 +168,7 @@ function App() {
       if (data.status) {
         await fetchSessions();
         setSelectedSession({ _id: data.data.session_id, title: data.data.title });
+        setIsSidebarOpen(false);
       }
     } catch (err) {
       console.error(err);
@@ -300,7 +302,9 @@ function App() {
 
   return (
     <div className="app-container">
-      <aside className="sidebar">
+      {isSidebarOpen && <div className="mobile-backdrop" onClick={() => setIsSidebarOpen(false)}></div>}
+      
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-section">
           <div className="sidebar-header">
             <h3>Chat Sessions</h3>
@@ -313,7 +317,10 @@ function App() {
               <div 
                 key={session._id} 
                 className={`file-item ${selectedSession?._id === session._id ? 'active' : ''}`}
-                onClick={() => setSelectedSession(session)}
+                onClick={() => {
+                  setSelectedSession(session);
+                  setIsSidebarOpen(false);
+                }}
               >
                 <span className="file-name" title={session.title}>{session.title}</span>
                 <button className="delete-btn" onClick={(e) => deleteSession(session._id, e)}>×</button>
@@ -357,6 +364,13 @@ function App() {
       </aside>
       
       <main className="chat-container">
+        <div className="mobile-header">
+          <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <span className="mobile-title">Knowledge Chat</span>
+        </div>
+        
         {selectedSession ? (
           <>
             <header className="chat-header">

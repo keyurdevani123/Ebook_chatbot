@@ -21,6 +21,7 @@ class LLMClient:
     def __init__(self) -> None:
         self.groq = Groq(api_key=os.environ["GROQ_API_KEY"])
         self._embedding_model = None  # Lazy-loaded on first use
+        self._model_cooldowns = {}  # Tracks {model_name: timestamp_when_available}
 
     @property
     def embedding_model(self):
@@ -72,29 +73,71 @@ class LLMClient:
             "llama3-70b-8192",
             "mixtral-8x7b-32768",
             "llama-3.3-70b-versatile",
+            "qwen/qwen3-32b",
+            "meta-llama/llama-4-scout-17b-16e-instruct"
         }
         if model not in allowed_models:
             model = self.DEFAULT_CHAT_MODEL
 
+        # Define a list of high-availability Groq models as fallbacks.
+        # It tries the requested model first, then cascades down this list.
+        fallback_models = [
+            model,
+            "llama-3.1-8b-instant",
+            "qwen/qwen3-32b",
+            "llama-3.3-70b-versatile",
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "mixtral-8x7b-32768"
+        ]
+        
         import time
-        max_retries = 3
-        base_delay = 2
-        for attempt in range(max_retries):
+        
+        # Remove duplicates while preserving order, AND skip models in cooldown
+        unique_fallbacks = []
+        for m in fallback_models:
+            if m not in unique_fallbacks:
+                # If model is on cooldown (hit 429 recently), skip it
+                cooldown_until = self._model_cooldowns.get(m, 0)
+                if time.time() >= cooldown_until:
+                    unique_fallbacks.append(m)
+
+        # If ALL models are currently on cooldown, just try them all anyway
+        # (Groq rate limits reset quickly, so it's worth a shot)
+        if not unique_fallbacks:
+            for m in fallback_models:
+                if m not in unique_fallbacks:
+                    unique_fallbacks.append(m)
+
+        last_exception = None
+        for current_model in unique_fallbacks:
             try:
                 completion = self.groq.chat.completions.create(
-                    model=model,
+                    model=current_model,
                     messages=messages,
                     temperature=temperature,
                     max_tokens=1024,
                 )
+                if current_model != model:
+                    print(f"Successfully switched to fallback model: {current_model}")
                 return completion.choices[0].message.content
             except Exception as e:
-                if "429" in str(e) or "Too Many Requests" in str(e):
-                    if attempt < max_retries - 1:
-                        sleep_time = base_delay * (2 ** attempt)
-                        print(f"Rate limit hit. Retrying in {sleep_time} seconds...")
-                        time.sleep(sleep_time)
+                error_str = str(e).lower()
+                if "429" in error_str or "too many requests" in error_str or "rate limit" in error_str:
+                    # Determine if this is a daily limit or a minute limit
+                    if "per day" in error_str:
+                        cooldown_seconds = 86400  # 24 hours
+                        print(f"Daily rate limit hit for {current_model}. Putting in 24-hour cooldown and switching...")
                     else:
-                        raise e
+                        cooldown_seconds = 60     # 1 minute
+                        print(f"Minute rate limit hit for {current_model}. Putting in 60s cooldown and switching...")
+                    
+                    # Remember that this model is exhausted for the appropriate duration
+                    self._model_cooldowns[current_model] = time.time() + cooldown_seconds
+                    last_exception = e
+                    continue
                 else:
+                    # If it's a different error (e.g. bad request, token auth), fail immediately.
                     raise e
+
+        # If we exhausted the entire list and still got 429s
+        raise last_exception or Exception("All fallback models failed due to rate limits.")
