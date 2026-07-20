@@ -99,7 +99,11 @@ async def upload_pdf(file: UploadFile = File(...), user_id: str = Depends(get_cu
         })
         
     if docs:
-        vector_docs = llm_client.embed_documents(docs)
+        import asyncio
+        # Run the heavy embedding HTTP requests in a threadpool so we don't block the FastAPI event loop!
+        # This prevents the server from freezing and failing Render's health checks during long uploads.
+        vector_docs = await asyncio.to_thread(llm_client.embed_documents, docs)
+        
         # Store in Pinecone
         vectordb_client.insert_documents(vector_docs)
         

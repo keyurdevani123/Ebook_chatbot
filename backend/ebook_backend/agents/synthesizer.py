@@ -98,7 +98,8 @@ class SynthesizerAgent:
             messages.extend(history[::-1])
             messages.append({"role": "user", "content": query})
             
-            answer = self.llm.chat(
+            answer = await asyncio.to_thread(
+                self.llm.chat,
                 messages,
                 model=model,
                 temperature=0.1
@@ -155,7 +156,8 @@ class SynthesizerAgent:
         messages.extend(history[::-1])
         messages.append({"role": "user", "content": query})
 
-        answer = self.llm.chat(messages, model=model, temperature=0.1)
+        # Run the synchronous Groq API call in a threadpool to prevent freezing the event loop
+        answer = await asyncio.to_thread(self.llm.chat, messages, model=model, temperature=0.1)
 
         logger.info(
             "SynthesizerAgent | Books: %s | Chunks used: %d | Confidence: %s",
