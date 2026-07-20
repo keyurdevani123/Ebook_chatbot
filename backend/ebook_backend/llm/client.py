@@ -45,7 +45,15 @@ class LLMClient:
     def embed_documents(self, docs: List[Document]) -> List[VectorDocument]:
         """Embed a list of LangChain Documents, returning VectorDocuments."""
         texts = [doc.page_content for doc in docs]
-        vectors = self.embedding_model.embed_documents(texts)
+        
+        # Batch requests to Hugging Face API to prevent timeouts on large PDFs
+        BATCH_SIZE = 32
+        vectors = []
+        for i in range(0, len(texts), BATCH_SIZE):
+            batch_texts = texts[i:i + BATCH_SIZE]
+            batch_vectors = self.embedding_model.embed_documents(batch_texts)
+            vectors.extend(batch_vectors)
+
         return [
             VectorDocument(
                 vector=v,
