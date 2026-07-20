@@ -6,14 +6,14 @@ from pinecone import Pinecone, ServerlessSpec
 
 from ebook_backend.models.document import ScoredDocument, VectorDocument
 
-# fastembed BAAI/bge-small-en-v1.5 produces 384-dimensional vectors
+# HuggingFace API BAAI/bge-small-en-v1.5 produces 384-dimensional vectors
 EMBEDDING_DIMENSIONS = 384
 
 
 class PineconeDBClient:
     """Client for Pinecone vector database operations.
 
-    Uses serverless Pinecone with 384-dim embeddings (fastembed bge-small-en-v1.5).
+    Uses serverless Pinecone with 384-dim embeddings (HuggingFace Inference API bge-small-en-v1.5).
     Default index: ``ebooks-production`` — scoped to books only.
     """
 

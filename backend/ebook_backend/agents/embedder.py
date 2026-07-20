@@ -17,10 +17,10 @@ logger = getLogger(__name__)
 
 
 class EmbedderAgent:
-    """Embeds a list of Document chunks using the fastembed local model.
+    """Embeds a list of Document chunks using the Hugging Face Inference API.
 
-    Embedding is done locally via ONNX — no API calls, no cost, no latency
-    from external services. First call downloads the model (~130 MB, cached).
+    Embedding is done via a remote API — no heavy local models are loaded into RAM.
+    This saves significant memory on constrained servers.
 
     Args:
         llm_client: Shared LLMClient instance (contains the embedding model).

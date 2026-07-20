@@ -19,8 +19,6 @@ pdfplumber>=0.11.0
 # LLM — Groq (free, fast LPU inference)
 groq>=0.9.0
 
-# Embeddings — fastembed (local ONNX, free, no GPU needed)
-fastembed>=0.7.0
 
 # Vector store — Pinecone
 pinecone-client==3.2.2
