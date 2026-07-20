@@ -36,7 +36,6 @@ class RetrieverAgent:
         query: str,
         book_ids: Optional[List[str]] = None,
         limit: int = 6,
-        vector: Optional[List[float]] = None,
     ) -> List[CitedChunk]:
         """Embed ``query`` and return the top-``limit`` cited chunks.
 
@@ -45,13 +44,11 @@ class RetrieverAgent:
             book_ids: Optional list of book IDs to scope the search.
                       Pass None or [] to search across all indexed books.
             limit: Maximum number of results to return.
-            vector: Optional pre-computed query vector (avoids redundant API calls).
 
         Returns:
             List of CitedChunk objects sorted by relevance score (descending).
         """
-        if vector is None:
-            vector = self.llm.embed_query(query)
+        vector = self.llm.embed_query(query)
 
         # Build Pinecone metadata filter
         pinecone_filter: dict = {}
@@ -139,11 +136,10 @@ class RetrieverAgent:
         query: str,
         book_ids: Optional[List[str]] = None,
         limit: int = 6,
-        vector: Optional[List[float]] = None,
     ) -> List[CitedChunk]:
         """Async-safe wrapper — runs the sync Pinecone call in a thread pool.
 
         This allows SynthesizerAgent to use asyncio.gather() for parallel
         retrieval across multiple books without blocking the event loop.
         """
-        return await asyncio.to_thread(self.retrieve, query, book_ids, limit, vector)
+        return await asyncio.to_thread(self.retrieve, query, book_ids, limit)

@@ -67,17 +67,8 @@ class SynthesizerAgent:
         # ----------------------------------------------------------------
         # Step 1: Parallel retrieval across all books
         # ----------------------------------------------------------------
-        
-        # Pre-compute query vector once to avoid redundant API calls & rate limits
-        try:
-            import asyncio
-            query_vector = await asyncio.to_thread(self.llm.embed_query, query)
-        except Exception as e:
-            logger.error("SynthesizerAgent | Failed to embed query: %s", e)
-            query_vector = None
-            
         tasks = [
-            self.retriever.retrieve_async(query, [bid], limit=CHUNKS_PER_BOOK, vector=query_vector)
+            self.retriever.retrieve_async(query, [bid], limit=CHUNKS_PER_BOOK)
             for bid in book_ids
         ]
         per_book_results: List[List[CitedChunk]] = await asyncio.gather(*tasks)
