@@ -68,8 +68,11 @@ async def upload_pdf(file: UploadFile = File(...), user_id: str = Depends(get_cu
     file_doc = files_db.store_file(user_id, file.filename, filepath, size)
     file_id = str(file_doc)
     
-    # Create text chunks with RecursiveCharacterTextSplitter to save memory
+    # Smart Sentence/Paragraph Chunking
+    # Uses regex to cleanly break on paragraphs first, then sentence boundaries (periods, question marks, etc).
     text_splitter = RecursiveCharacterTextSplitter(
+        separators=["\n\n", "(?<=[.!?]) +", "\n", " ", ""],
+        is_separator_regex=True,
         chunk_size=1000,
         chunk_overlap=200,
         length_function=len,
