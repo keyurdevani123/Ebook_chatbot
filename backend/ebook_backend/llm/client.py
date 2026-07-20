@@ -8,10 +8,10 @@ from ..models.document import VectorDocument
 
 
 class LLMClient:
-    """Unified client for LLM chat (Groq) and embeddings (fastembed).
+    """Unified client for LLM chat (Groq) and embeddings (HuggingFace API).
 
     Groq provides extremely fast free-tier inference via LPU hardware.
-    fastembed provides lightweight local ONNX embeddings (no API calls, no cost).
+    HuggingFace API provides free cloud-based embeddings (0 RAM usage).
     Model: BAAI/bge-small-en-v1.5 → 384-dimensional vectors.
     """
 
@@ -25,10 +25,17 @@ class LLMClient:
 
     @property
     def embedding_model(self):
-        """Lazy-load fastembed model to avoid slowing down server startup."""
+        """Lazy-load HuggingFace API to avoid slowing down server startup and save RAM."""
         if self._embedding_model is None:
-            from fastembed import TextEmbedding  # noqa: import-here to defer load
-            self._embedding_model = TextEmbedding(self.EMBEDDING_MODEL)
+            from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+            hf_token = os.environ.get("HF_TOKEN")
+            if not hf_token:
+                raise ValueError("HF_TOKEN environment variable is missing in .env! Please get a free token from huggingface.co")
+            
+            self._embedding_model = HuggingFaceInferenceAPIEmbeddings(
+                api_key=hf_token,
+                model_name=self.EMBEDDING_MODEL
+            )
         return self._embedding_model
 
     # ------------------------------------------------------------------
@@ -38,10 +45,10 @@ class LLMClient:
     def embed_documents(self, docs: List[Document]) -> List[VectorDocument]:
         """Embed a list of LangChain Documents, returning VectorDocuments."""
         texts = [doc.page_content for doc in docs]
-        vectors = list(self.embedding_model.embed(texts))
+        vectors = self.embedding_model.embed_documents(texts)
         return [
             VectorDocument(
-                vector=v.tolist(),
+                vector=v,
                 metadata={**doc.metadata, "text": doc.page_content},
             )
             for v, doc in zip(vectors, docs)
@@ -49,8 +56,7 @@ class LLMClient:
 
     def embed_query(self, query: str) -> List[float]:
         """Embed a single query string for similarity search."""
-        vectors = list(self.embedding_model.embed([query]))
-        return vectors[0].tolist()
+        return self.embedding_model.embed_query(query)
 
     # ------------------------------------------------------------------
     # Chat

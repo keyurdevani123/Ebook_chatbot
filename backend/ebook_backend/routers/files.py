@@ -3,8 +3,7 @@ import shutil
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, Header
 import pdfplumber
 import jwt
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 import uuid
 
@@ -69,9 +68,12 @@ async def upload_pdf(file: UploadFile = File(...), user_id: str = Depends(get_cu
     file_doc = files_db.store_file(user_id, file.filename, filepath, size)
     file_id = str(file_doc)
     
-    # Create Vector Embeddings with SemanticChunker
-    embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
-    text_splitter = SemanticChunker(embeddings)
+    # Create text chunks with RecursiveCharacterTextSplitter to save memory
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+        length_function=len,
+    )
     raw_docs = text_splitter.create_documents([text])
     
     docs = []
