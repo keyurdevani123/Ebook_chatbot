@@ -9,7 +9,7 @@ A full-stack AI assistant that lets you upload your own PDFs and chat with them 
   * Uses **Pinecone** for semantic vector search (understanding the meaning behind your question).
   * Uses **MongoDB** for exact keyword text search (finding exact IDs, names, or rare acronyms).
   * Merges both searches mathematically using Reciprocal Rank Fusion (RRF).
-* **Smart Semantic Chunking**: Analyzes sentences to split chunks intelligently based on topic changes, rather than blindly cutting text every 1000 characters.
+* **Smart Semantic Chunking**: Uses LangChain and regex boundaries to intelligently split chunks on paragraphs and sentences, preserving context without memory overhead.
 * **Fast Inference**: Uses the Groq API (Llama 3.1) for lightning-fast LLM responses.
 * **Modern UI**: React and Vite frontend with a clean, responsive dark-mode aesthetic.
 
@@ -18,7 +18,7 @@ A full-stack AI assistant that lets you upload your own PDFs and chat with them 
 * **Frontend**: React.js, Vite, Vanilla CSS
 * **Backend**: FastAPI (Python)
 * **Databases**: MongoDB Atlas (Auth/Metadata/Keywords) & Pinecone (Vectors)
-* **AI Tooling**: LangChain, FastEmbed (local ONNX embeddings), pdfplumber
+* **AI Tooling**: LangChain, Hugging Face Inference API (zero-memory cloud embeddings), pdfplumber
 
 ## Local Setup
 
@@ -37,6 +37,7 @@ A full-stack AI assistant that lets you upload your own PDFs and chat with them 
    PINECONE_API_KEY=your_key
    MONGODB_HOST=your_mongo_connection_string
    JWT_SECRET=your_secret
+   HF_TOKEN=your_huggingface_token
    ```
 4. Start the server:
    ```bash
