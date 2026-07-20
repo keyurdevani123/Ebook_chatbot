@@ -25,34 +25,41 @@ class LLMClient:
 
     @property
     def embedding_model(self):
-        """Lazy-load HuggingFace API to avoid slowing down server startup and save RAM."""
-        if self._embedding_model is None:
-            from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
-            hf_token = os.environ.get("HF_TOKEN")
-            if not hf_token:
-                raise ValueError("HF_TOKEN environment variable is missing in .env! Please get a free token from huggingface.co")
-            
-            self._embedding_model = HuggingFaceInferenceAPIEmbeddings(
-                api_key=hf_token,
-                model_name=self.EMBEDDING_MODEL
-            )
-        return self._embedding_model
+        """No longer used. We use raw HTTP for embeddings."""
+        return None
 
     # ------------------------------------------------------------------
     # Embeddings
     # ------------------------------------------------------------------
 
     def embed_documents(self, docs: List[Document]) -> List[VectorDocument]:
-        """Embed a list of LangChain Documents, returning VectorDocuments."""
+        """Embed a list of LangChain Documents using raw HTTP to Hugging Face."""
+        import httpx
+        
         texts = [doc.page_content for doc in docs]
+        hf_token = os.environ.get("HF_TOKEN")
+        if not hf_token:
+            raise ValueError("HF_TOKEN environment variable is missing in .env!")
+            
+        api_url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self.EMBEDDING_MODEL}"
+        headers = {"Authorization": f"Bearer {hf_token}"}
         
         # Batch requests to Hugging Face API to prevent timeouts on large PDFs
         BATCH_SIZE = 32
         vectors = []
-        for i in range(0, len(texts), BATCH_SIZE):
-            batch_texts = texts[i:i + BATCH_SIZE]
-            batch_vectors = self.embedding_model.embed_documents(batch_texts)
-            vectors.extend(batch_vectors)
+        
+        # Use a synchronous httpx client (or requests) since this is a synchronous function
+        with httpx.Client(timeout=120.0) as client:
+            for i in range(0, len(texts), BATCH_SIZE):
+                batch_texts = texts[i:i + BATCH_SIZE]
+                response = client.post(
+                    api_url, 
+                    headers=headers, 
+                    json={"inputs": batch_texts, "options": {"wait_for_model": True}}
+                )
+                response.raise_for_status()
+                batch_vectors = response.json()
+                vectors.extend(batch_vectors)
 
         return [
             VectorDocument(
@@ -63,8 +70,22 @@ class LLMClient:
         ]
 
     def embed_query(self, query: str) -> List[float]:
-        """Embed a single query string for similarity search."""
-        return self.embedding_model.embed_query(query)
+        """Embed a single query string for similarity search using raw HTTP."""
+        import httpx
+        
+        hf_token = os.environ.get("HF_TOKEN")
+        api_url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self.EMBEDDING_MODEL}"
+        headers = {"Authorization": f"Bearer {hf_token}"}
+        
+        with httpx.Client(timeout=60.0) as client:
+            response = client.post(
+                api_url, 
+                headers=headers, 
+                json={"inputs": [query], "options": {"wait_for_model": True}}
+            )
+            response.raise_for_status()
+            vectors = response.json()
+            return vectors[0]
 
     # ------------------------------------------------------------------
     # Chat
