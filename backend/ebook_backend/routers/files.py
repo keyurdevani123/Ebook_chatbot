@@ -3,7 +3,7 @@ import shutil
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, Header
 import pdfplumber
 import jwt
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 import uuid
 
